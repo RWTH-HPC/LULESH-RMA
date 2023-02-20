@@ -1,6 +1,9 @@
 #if !defined(USE_MPI)
 # error "You should specify USE_MPI=0 or USE_MPI=1 on the compile line"
 #endif
+#if !defined(USE_RMA)
+# error "You should specify USE_RMA=0 or USE_RMA=1 on the compile line"
+#endif
 
 #if USE_MPI
 #include <mpi.h>
@@ -259,6 +262,8 @@ class Domain {
    //
    // ACCESSORS
    //
+
+    MPI_Win window_commDataRecv;
 
    // Node-centered
 

@@ -205,6 +205,10 @@ Domain::~Domain()
      delete [] m_regElemlist[i];
    }
    delete [] m_regElemlist;
+#if USE_RMA
+  MPI_Win_unlock_all(window_commDataRecv);
+  MPI_Win_free(&window_commDataRecv);
+#endif
    
 #if USE_MPI
    delete [] commDataSend;
@@ -356,28 +360,31 @@ Domain::SetupCommBuffers(Int_t edgeNodes)
 
 #if USE_MPI   
   // account for face communication 
-  Index_t comBufSize =
-    (m_rowMin + m_rowMax + m_colMin + m_colMax + m_planeMin + m_planeMax) *
-    m_maxPlaneSize * MAX_FIELDS_PER_MPI_COMM ;
+  // Index_t comBufSize =
+  //   (m_rowMin + m_rowMax + m_colMin + m_colMax + m_planeMin + m_planeMax) *
+  //   m_maxPlaneSize * MAX_FIELDS_PER_MPI_COMM ;
+  Index_t comBufSize = 6 * m_maxPlaneSize * MAX_FIELDS_PER_MPI_COMM ;
 
   // account for edge communication 
-  comBufSize +=
-    ((m_rowMin & m_colMin) + (m_rowMin & m_planeMin) + (m_colMin & m_planeMin) +
-     (m_rowMax & m_colMax) + (m_rowMax & m_planeMax) + (m_colMax & m_planeMax) +
-     (m_rowMax & m_colMin) + (m_rowMin & m_planeMax) + (m_colMin & m_planeMax) +
-     (m_rowMin & m_colMax) + (m_rowMax & m_planeMin) + (m_colMax & m_planeMin)) *
-    m_maxEdgeSize * MAX_FIELDS_PER_MPI_COMM ;
+  // comBufSize +=
+  //   ((m_rowMin & m_colMin) + (m_rowMin & m_planeMin) + (m_colMin & m_planeMin) +
+  //    (m_rowMax & m_colMax) + (m_rowMax & m_planeMax) + (m_colMax & m_planeMax) +
+  //    (m_rowMax & m_colMin) + (m_rowMin & m_planeMax) + (m_colMin & m_planeMax) +
+  //    (m_rowMin & m_colMax) + (m_rowMax & m_planeMin) + (m_colMax & m_planeMin)) *
+  //   m_maxEdgeSize * MAX_FIELDS_PER_MPI_COMM ;
+  comBufSize += 12 * m_maxEdgeSize * MAX_FIELDS_PER_MPI_COMM ;
 
   // account for corner communication 
   // factor of 16 is so each buffer has its own cache line 
-  comBufSize += ((m_rowMin & m_colMin & m_planeMin) +
-		 (m_rowMin & m_colMin & m_planeMax) +
-		 (m_rowMin & m_colMax & m_planeMin) +
-		 (m_rowMin & m_colMax & m_planeMax) +
-		 (m_rowMax & m_colMin & m_planeMin) +
-		 (m_rowMax & m_colMin & m_planeMax) +
-		 (m_rowMax & m_colMax & m_planeMin) +
-		 (m_rowMax & m_colMax & m_planeMax)) * CACHE_COHERENCE_PAD_REAL ;
+  // comBufSize += ((m_rowMin & m_colMin & m_planeMin) +
+	// 	 (m_rowMin & m_colMin & m_planeMax) +
+	// 	 (m_rowMin & m_colMax & m_planeMin) +
+	// 	 (m_rowMin & m_colMax & m_planeMax) +
+	// 	 (m_rowMax & m_colMin & m_planeMin) +
+	// 	 (m_rowMax & m_colMin & m_planeMax) +
+	// 	 (m_rowMax & m_colMax & m_planeMin) +
+	// 	 (m_rowMax & m_colMax & m_planeMax)) * CACHE_COHERENCE_PAD_REAL ;
+  comBufSize += 8 * CACHE_COHERENCE_PAD_REAL;
 
   this->commDataSend = new Real_t[comBufSize] ;
   this->commDataRecv = new Real_t[comBufSize] ;
@@ -393,6 +400,11 @@ Domain::SetupCommBuffers(Int_t edgeNodes)
     m_symmY.resize(edgeNodes*edgeNodes);
   if (m_planeLoc == 0)
     m_symmZ.resize(edgeNodes*edgeNodes);
+
+#if USE_RMA
+  MPI_Win_create(commDataRecv, (MPI_Aint)((comBufSize) * sizeof(Real_t)), sizeof(Real_t), MPI_INFO_NULL, MPI_COMM_WORLD, &window_commDataRecv);
+  MPI_Win_lock_all(0, window_commDataRecv);
+#endif
 }
 
 

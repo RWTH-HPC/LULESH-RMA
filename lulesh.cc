@@ -2692,12 +2692,17 @@ int main(int argc, char *argv[])
    ParseCommandLineOptions(argc, argv, myRank, &opts);
 
    if ((myRank == 0) && (opts.quiet == 0)) {
-      std::cout << "Running problem size " << opts.nx << "^3 per domain until completion\n";
-      std::cout << "Num processors: "      << numRanks << "\n";
-#if _OPENMP
-      std::cout << "Num threads: " << omp_get_max_threads() << "\n";
+#if USE_RMA
+      std::cout << "# MPI communication: MPI-RMA with lock_all\n";
+#else
+      std::cout << "# MPI communication: MPI two-sided communication\n";
 #endif
-      std::cout << "Total number of elements: " << ((Int8_t)numRanks*opts.nx*opts.nx*opts.nx) << " \n\n";
+      std::cout << "# Running problem size " << opts.nx << "^3 per domain until completion\n";
+      std::cout << "# Num processors: "      << numRanks << "\n";
+#if _OPENMP
+      std::cout << "# Num threads: " << omp_get_max_threads() << "\n";
+#endif
+      std::cout << "# Total number of elements: " << ((Int8_t)numRanks*opts.nx*opts.nx*opts.nx) << " \n\n";
       std::cout << "To run other sizes, use -s <integer>.\n";
       std::cout << "To run a fixed number of iterations, use -i <integer>.\n";
       std::cout << "To run a more or less balanced region set, use -b <integer>.\n";
