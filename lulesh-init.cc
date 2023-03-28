@@ -206,7 +206,7 @@ Domain::~Domain()
    }
    delete [] m_regElemlist;
 #if USE_RMA
-  MPI_Win_unlock_all(window_commDataRecv);
+  MPI_Win_fence(0, window_commDataRecv);
   MPI_Win_free(&window_commDataRecv);
 #endif
    
@@ -394,7 +394,7 @@ Domain::SetupCommBuffers(Int_t edgeNodes)
   
 #if USE_RMA  
   MPI_Win_allocate((MPI_Aint)((comBufSize) * sizeof(Real_t)), sizeof(Real_t), MPI_INFO_NULL, MPI_COMM_WORLD,&commDataRecv, &window_commDataRecv);
-  MPI_Win_lock_all(0, window_commDataRecv);
+  MPI_Win_fence(0, window_commDataRecv);
 #endif
 
   // prevent floating point exceptions 

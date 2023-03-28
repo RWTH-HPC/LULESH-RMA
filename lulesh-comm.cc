@@ -1184,7 +1184,7 @@ void CommSend(Domain& domain, Int_t msgType,
 
    MPI_Waitall(26, domain.sendRequest, status) ;
 #if USE_RMA
-   MPI_Win_flush_all(domain.window_commDataRecv);
+   MPI_Win_fence(0, domain.window_commDataRecv);
 #endif
 }
 
