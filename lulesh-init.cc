@@ -205,14 +205,16 @@ Domain::~Domain()
      delete [] m_regElemlist[i];
    }
    delete [] m_regElemlist;
-#if USE_RMA
-  MPI_Win_fence(0, window_commDataRecv);
-  MPI_Win_free(&window_commDataRecv);
-#endif
    
 #if USE_MPI
+#if USE_RMA
+  MPI_Win_fence(0, window_commDataSend);
+  MPI_Win_free(&window_commDataSend);
+#else
    delete [] commDataSend;
-   //delete [] commDataRecv;
+#endif
+
+   delete [] commDataRecv;
 #endif
 } // End destructor
 
@@ -360,10 +362,10 @@ Domain::SetupCommBuffers(Int_t edgeNodes)
 
 #if USE_MPI 
 #if USE_RMA
-  Index_t comBufSize = 6 * m_maxPlaneSize * MAX_FIELDS_PER_MPI_COMM ;  
-  comBufSize += 12 * m_maxEdgeSize * MAX_FIELDS_PER_MPI_COMM ;  
-  comBufSize += 8 * CACHE_COHERENCE_PAD_REAL;
-#else
+  Index_t comBufSize_max = 6 * m_maxPlaneSize * MAX_FIELDS_PER_MPI_COMM ;  
+  comBufSize_max += 12 * m_maxEdgeSize * MAX_FIELDS_PER_MPI_COMM ;  
+  comBufSize_max += 8 * CACHE_COHERENCE_PAD_REAL;
+#endif
   // account for face communication 
   Index_t comBufSize =
     (m_rowMin + m_rowMax + m_colMin + m_colMax + m_planeMin + m_planeMax) *
@@ -387,18 +389,21 @@ Domain::SetupCommBuffers(Int_t edgeNodes)
 		 (m_rowMax & m_colMin & m_planeMax) +
 		 (m_rowMax & m_colMax & m_planeMin) +
 		 (m_rowMax & m_colMax & m_planeMax)) * CACHE_COHERENCE_PAD_REAL ;
-#endif
-  this->commDataSend = new Real_t[comBufSize] ;
-  this->commDataRecv = new Real_t[comBufSize] ;
 
-  
 #if USE_RMA  
-  MPI_Win_allocate((MPI_Aint)((comBufSize) * sizeof(Real_t)), sizeof(Real_t), MPI_INFO_NULL, MPI_COMM_WORLD,&commDataRecv, &window_commDataRecv);
-  MPI_Win_fence(0, window_commDataRecv);
-#endif
-
+  MPI_Win_allocate((MPI_Aint)((comBufSize_max) * sizeof(Real_t)), sizeof(Real_t), MPI_INFO_NULL, MPI_COMM_WORLD,&commDataSend, &window_commDataSend);
+  
+  // prevent floating point exceptions 
+  memset(this->commDataSend, 0, comBufSize_max*sizeof(Real_t)) ;
+  MPI_Win_fence(0, window_commDataSend);
+#else
+  this->commDataSend = new Real_t[comBufSize] ;
   // prevent floating point exceptions 
   memset(this->commDataSend, 0, comBufSize*sizeof(Real_t)) ;
+#endif
+  
+  this->commDataRecv = new Real_t[comBufSize] ;
+  // prevent floating point exceptions 
   memset(this->commDataRecv, 0, comBufSize*sizeof(Real_t)) ;
 #endif   
 

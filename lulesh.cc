@@ -1105,7 +1105,7 @@ static inline void CalcForceForNodes(Domain& domain)
 {
   Index_t numNode = domain.numNode() ;
 
-#if USE_MPI  
+#if USE_MPI && !USE_RMA
   CommRecv(domain, MSG_COMM_SBN, 3,
            domain.sizeX() + 1, domain.sizeY() + 1, domain.sizeZ() + 1,
            true, false) ;
@@ -1130,6 +1130,11 @@ static inline void CalcForceForNodes(Domain& domain)
   CommSend(domain, MSG_COMM_SBN, 3, fieldData,
            domain.sizeX() + 1, domain.sizeY() + 1, domain.sizeZ() +  1,
            true, false) ;
+#if USE_RMA
+   CommRecv(domain, MSG_COMM_SBN, 3,
+           domain.sizeX() + 1, domain.sizeY() + 1, domain.sizeZ() + 1,
+           true, false) ;
+#endif
   CommSBN(domain, 3, fieldData) ;
 #endif  
 }
@@ -1234,7 +1239,7 @@ void LagrangeNodal(Domain& domain)
    * acceleration boundary conditions. */
   CalcForceForNodes(domain);
 
-#if USE_MPI  
+#if USE_MPI  && !USE_RMA
 #ifdef SEDOV_SYNC_POS_VEL_EARLY
    CommRecv(domain, MSG_SYNC_POS_VEL, 6,
             domain.sizeX() + 1, domain.sizeY() + 1, domain.sizeZ() + 1,
@@ -1261,6 +1266,11 @@ void LagrangeNodal(Domain& domain)
    CommSend(domain, MSG_SYNC_POS_VEL, 6, fieldData,
             domain.sizeX() + 1, domain.sizeY() + 1, domain.sizeZ() + 1,
             false, false) ;
+#if USE_RMA
+   CommRecv(domain, MSG_SYNC_POS_VEL, 6,
+            domain.sizeX() + 1, domain.sizeY() + 1, domain.sizeZ() + 1,
+            false, false) ;
+#endif
    CommSyncPosVel(domain) ;
 #endif
 #endif
@@ -1959,7 +1969,7 @@ void CalcQForElems(Domain& domain)
 
       domain.AllocateGradients(numElem, allElem);
 
-#if USE_MPI      
+#if USE_MPI && !USE_RMA   
       CommRecv(domain, MSG_MONOQ, 3,
                domain.sizeX(), domain.sizeY(), domain.sizeZ(),
                true, true) ;
@@ -1981,7 +1991,11 @@ void CalcQForElems(Domain& domain)
       CommSend(domain, MSG_MONOQ, 3, fieldData,
                domain.sizeX(), domain.sizeY(), domain.sizeZ(),
                true, true) ;
-
+#if USE_RMA
+      CommRecv(domain, MSG_MONOQ, 3,
+               domain.sizeX(), domain.sizeY(), domain.sizeZ(),
+               true, true) ;
+#endif
       CommMonoQ(domain) ;
 #endif      
 
@@ -2618,9 +2632,11 @@ void LagrangeLeapFrog(Domain& domain)
 
 #if USE_MPI   
 #ifdef SEDOV_SYNC_POS_VEL_LATE
+#if !USE_RMA
    CommRecv(domain, MSG_SYNC_POS_VEL, 6,
             domain.sizeX() + 1, domain.sizeY() + 1, domain.sizeZ() + 1,
             false, false) ;
+#endif
 
    fieldData[0] = &Domain::x ;
    fieldData[1] = &Domain::y ;
@@ -2632,6 +2648,12 @@ void LagrangeLeapFrog(Domain& domain)
    CommSend(domain, MSG_SYNC_POS_VEL, 6, fieldData,
             domain.sizeX() + 1, domain.sizeY() + 1, domain.sizeZ() + 1,
             false, false) ;
+   
+#if USE_RMA
+   CommRecv(domain, MSG_SYNC_POS_VEL, 6,
+            domain.sizeX() + 1, domain.sizeY() + 1, domain.sizeZ() + 1,
+            false, false) ;
+#endif
 #endif
 #endif   
 
@@ -2725,12 +2747,19 @@ int main(int argc, char *argv[])
    fieldData = &Domain::nodalMass ;
 
    // Initial domain boundary communication 
+#if !USE_RMA
    CommRecv(*locDom, MSG_COMM_SBN, 1,
             locDom->sizeX() + 1, locDom->sizeY() + 1, locDom->sizeZ() + 1,
             true, false) ;
+#endif
    CommSend(*locDom, MSG_COMM_SBN, 1, &fieldData,
             locDom->sizeX() + 1, locDom->sizeY() + 1, locDom->sizeZ() +  1,
             true, false) ;
+#if USE_RMA
+   CommRecv(*locDom, MSG_COMM_SBN, 1,
+            locDom->sizeX() + 1, locDom->sizeY() + 1, locDom->sizeZ() + 1,
+            true, false) ;
+#endif
    CommSBN(*locDom, 1, &fieldData) ;
 
    // End initialization

@@ -263,7 +263,7 @@ class Domain {
    // ACCESSORS
    //
 
-    MPI_Win window_commDataRecv;
+    MPI_Win window_commDataSend;
 
    // Node-centered
 
