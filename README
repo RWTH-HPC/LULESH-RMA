@@ -1,3 +1,11 @@
+## Port to MPI-RMA
+
+To port LULESH to MPI-RMA, the following changes were made:
+Replaced `MPI_Irecv` calls with `MPI_Get` calls, and added `MPI_Win_fence` for synchronization. In the original LULESH code, the data placement in the **send buffer** was quasi-dynamic, making it challenging to determine where data should be read from with `MPI_Get`. To address this, we used a static data placement for the **send buffer** instead.
+
+
+## Original README
+
 This is the README for LULESH 2.0
 
 More information including LULESH 1.0 can be found at https://codesign.llnl.gov/lulesh.php
